@@ -136,5 +136,26 @@ class BinarySortedDict:
     def return_sorted_list(self):
         return list(self.root)
 
+    def sorted_key_vals(self):
+        x = self.return_sorted_list()
+        y = []
+        for a in x:
+            y.append(self[a])
+        return x, y
+
     def get_closest_keys(self, item):
         return [self.root.get_closest_below(item), self.root.get_closest_above(item)]
+
+    def linearly_interpolate(self, key) -> float:
+        if self.d == {}: return None
+        if key in self.d: return self.d[key]
+        closest_keys = self.get_closest_keys(key)
+        x0 = closest_keys[0]
+        x1 = closest_keys[1]
+        if x0 is None:
+            return self.d[x1]
+        if x1 is None:
+            return self.d[x0]
+        y0 = self.d[x0]
+        y1 = self.d[x1]
+        return y0 + (y1 - y0) * (key - x0) / (x1 - x0)
