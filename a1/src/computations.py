@@ -1,11 +1,9 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from BinarySortedDict import BinarySortedDict
+from src.BinarySortedDict import BinarySortedDict
 
 
-info_filename = "data/bond_info.csv"
-price_filename = "data/bond_prices.csv"
 output_folder = "output/"
 FV = 100.0
 
@@ -59,7 +57,7 @@ def get_future_coupon_payments(row):
     return periods
 
 
-def build_data():
+def build_data(info_filename: str, price_filename: str) -> pd.DataFrame:
     # Process info data
     info = pd.read_csv(info_filename)
     info["Coupon"] = info["Coupon"].astype(float) / 100.0
@@ -130,7 +128,7 @@ def get_all_ytm(bonds: list, df: pd.DataFrame, dates: list) -> list:
     return ytm
 
 
-def plot_ytm(ytm, dates) -> None:
+def plot_ytm(ytm, dates, output_folder) -> None:
     fig, ax = plt.subplots(1)
     for i in range(len(ytm)):
         x, y = ytm[i].sorted_key_vals()
@@ -185,7 +183,7 @@ def get_all_sr(bonds, df, dates, compounding_period=0):
     return r
 
 
-def plot_sr(rates, dates) -> None:
+def plot_sr(rates, dates, output_folder) -> None:
     fig, ax = plt.subplots(1)
     for i in range(len(rates)):
         x, y = rates[i].sorted_key_vals()
@@ -223,7 +221,7 @@ def get_all_fr(spots):
     return forward_vals
 
 
-def plot_fr(fr, dates):
+def plot_fr(fr, dates, output_folder):
     fr_fig, fr_ax = plt.subplots(1)
     for i in range(len(fr)):
         fr_ax.plot([1, 2, 3, 4], np.array(fr[i])*100.0, label=dates[i])
