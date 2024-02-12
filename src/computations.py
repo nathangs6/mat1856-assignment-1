@@ -24,8 +24,6 @@ class Bond:
         self.coupon = coupon
         self.coupon_payment = fv*coupon
         self.notional = fv + fv*coupon
-        self.maturity_period = maturity_period
-        self.coupon_periods = coupon_periods
 
 
 #########################
@@ -87,20 +85,20 @@ def build_data():
 ########################
 ### YTM Computations ###
 ########################
-def continuous_ytm(bond: Bond, price: float, ytm: float) -> float:
+def continuous_ytm(bond: Bond, price: float, coupon_periods: list, maturity_period: int, ytm: float) -> float:
     P = 0
-    for period in bond.coupon_periods:
+    for period in coupon_periods:
         P += bond.coupon_payment * np.exp(-ytm*period/365)
-    return P + bond.notional * np.exp(-ytm*bond.maturity_period/365) - price
+    return P + bond.notional * np.exp(-ytm*maturity_period/365) - price
 
-def d_continuous_ytm(bond: Bond, ytm: float) -> float:
+def d_continuous_ytm(bond: Bond, coupon_periods: list, maturity_period: int, ytm: float) -> float:
     P = 0
-    for period in bond.coupon_periods:
+    for period in coupon_periods:
         P -= bond.coupon_payment * (period/365) * np.exp(-ytm*period/365)
-    return P - bond.notional * (bond.maturity_period/365) * np.exp(-ytm*bond.maturity_period/365)
+    return P - bond.notional * (maturity_period/365) * np.exp(-ytm*maturity_period/365)
 
 
-def newton_raphson_ytm(P: float, bond: Bond) -> float:
+def newton_raphson_ytm(P: float, coupon_periods: list, maturity_period: int, bond: Bond) -> float:
     old_ytm = 10.0
     ytm = 0.03
     TOL = 1e-6
@@ -108,7 +106,7 @@ def newton_raphson_ytm(P: float, bond: Bond) -> float:
     i = 0
     while i < num_iter and np.abs(ytm - old_ytm) > TOL:
         old_ytm = ytm
-        ytm = old_ytm - continuous_ytm(bond, P, ytm)/d_continuous_ytm(bond, ytm)
+        ytm = old_ytm - continuous_ytm(bond, P, coupon_periods, maturity_period, ytm)/d_continuous_ytm(bond, coupon_periods, maturity_period, ytm)
         i += 1
     if i == num_iter:
         print("Max number of iterations reached.")
@@ -119,7 +117,9 @@ def compute_ytm(bonds: list, df: pd.DataFrame) -> BinarySortedDict:
     ytm = BinarySortedDict()
     for bond in bonds:
         dirty_price = df[df["ISIN"] == bond.isin].iloc[0]["Dirty Price"]
-        ytm[bond.maturity_period] = newton_raphson_ytm(dirty_price, bond)
+        coupon_periods = df[df["ISIN"] == bond.isin].iloc[0]["Coupon Periods"]
+        maturity_period = df[df["ISIN"] == bond.isin].iloc[0]["Maturity Period"]
+        ytm[maturity_period] = newton_raphson_ytm(dirty_price, coupon_periods, maturity_period, bond)
     return ytm
 
 
@@ -148,9 +148,11 @@ def bootstrap(bonds, df, compounding_period=0):
     r = BinarySortedDict()
     for bond in bonds:
         dirty_price = df[df["ISIN"] == bond.isin].iloc[0]["Dirty Price"]
+        coupon_periods = df[df["ISIN"] == bond.isin].iloc[0]["Coupon Periods"]
+        maturity_period = df[df["ISIN"] == bond.isin].iloc[0]["Maturity Period"]
 
         discounted_cf = 0
-        for period in bond.coupon_periods:
+        for period in coupon_periods:
             if period not in r:  # interpolate
                 r[period] = r.linearly_interpolate(period)
             if compounding_period == 0:
@@ -158,9 +160,9 @@ def bootstrap(bonds, df, compounding_period=0):
             elif compounding_period == 1:
                 discounted_cf += bond.coupon_payment * annual_time_period(r[period], period/365)
         if compounding_period == 0:
-            r[bond.maturity_period] = continuous_yield(dirty_price - discounted_cf, bond.notional, bond.maturity_period/365)
+            r[maturity_period] = continuous_yield(dirty_price - discounted_cf, bond.notional, maturity_period/365)
         elif compounding_period == 1:
-            r[bond.maturity_period] = annual_yield(bond.notional, dirty_price - discounted_cf, bond.maturity_period/365)
+            r[maturity_period] = annual_yield(bond.notional, dirty_price - discounted_cf, maturity_period/365)
     return r
 
 def continuous_time_period(r,t):
@@ -206,15 +208,16 @@ def compute_forward_rates(r):
     rates = []
     initial_period = 365
     for period in [365*x for x in range(2,6)]:
-        rate = (r[period] * (period) - r[initial_period] * (initial_period))/(period-initial_period)
+        rate = (r[period] * period - r[initial_period] * initial_period)/(period-initial_period)
         rates.append(rate)
     return rates
 
 
-def get_all_fr(ytms):
+def get_all_fr(spots):
     forward_vals = []
-    for r in ytms:
+    for r in spots:
         interpolate_to_years(r)
+        print(r)
         forward_rates = compute_forward_rates(r)
         forward_vals.append(forward_rates)
     return forward_vals
@@ -263,10 +266,10 @@ def eval_evec_to_latex(cov):
         ret += f"$\\lambda_{i}$ & "
     ret = ret[:-2] + "\\\\\n\t\t\t\\hline\n\t\t\t"
     for i in range(len(eigvals)):
-        ret += f"${round(100*eigvals[i]/trace,4)}\%$ & "
+        ret += f"${format_scientific(100*eigvals[i]/trace)}\%$ & "
     ret = ret[:-2] + "\\\\\n\t\t\t\\hline\n\t\t\t"
     for i in range(len(eigvals)):
-        ret += f"${round(eigvals[i],6)}$ & "
+        ret += f"${format_scientific(eigvals[i])}$ & "
     ret = ret[:-2] + "\\\\\n\t\t\t\\hline\n\t\t\t"
     for i in range(cov.shape[0]):
         for j in range(len(eigvecs)):
@@ -287,9 +290,38 @@ def matrix_to_latex(m):
     ret = ""
     for i in range(m.shape[0]):
         for j in range(m.shape[1]):
-            ret += str(round(m[i][j], 8)) + " & "
+            ret += format_base_only(m[i][j]) + " & "
         ret = ret[:-2] + "\\\\\n"
     return ret[:-4]
+
+
+#####################
+### Other Helpers ###
+#####################
+def format_scientific(x):
+    if x < 1:
+        # Convert to scientific notation
+        sci_notation = "{:.2e}".format(x)
+        base, exponent = sci_notation.split("e")
+
+        # Convert exponent to integer
+        exponent = int(exponent)
+
+        # Construct the final formatted string
+        formatted_string = f"{base} \cdot 10^{{{exponent}}}"
+    else:
+        formatted_string = str(round(x,2))
+
+    return formatted_string
+
+def format_base_only(x):
+    sci_notation = "{:.2e}".format(x)
+    base, exponent = sci_notation.split("e")
+
+    # Construct the final formatted string
+    formatted_string = f"{base}"
+
+    return formatted_string
 
 
 ##################
@@ -321,7 +353,7 @@ if __name__ == "__main__":
     plot_ytm(ytm, date_strs)
     # Spot Rate Step
     print("Computing spot rates")
-    sr = get_all_sr(bonds, df, dates, compounding_period=1)
+    sr = get_all_sr(bonds, df, dates, compounding_period=0)
     plot_sr(sr, date_strs)
 
     # FR Step
@@ -341,4 +373,5 @@ if __name__ == "__main__":
     print("Computing covariance characteristics for forward rates")
     fr_cov = construct_cov(fr, daily_log_returns)
     print(matrix_to_latex(fr_cov))
-    display_cov_evs(fr_cov)
+    #display_cov_evs(fr_cov)
+    print(eval_evec_to_latex(fr_cov))
