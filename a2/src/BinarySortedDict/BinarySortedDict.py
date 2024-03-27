@@ -46,7 +46,7 @@ class BinarySearchTree:
         elif val > self._root:
             self._right.insert(val)
         else:
-            self._key = key
+            self._key = val
 
     def get_closest_below(self, item):
         closest = None
