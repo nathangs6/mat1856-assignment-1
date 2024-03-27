@@ -126,7 +126,10 @@ class BinarySortedDict:
         return key in self.d
 
     def __getitem__(self, key):
-        return self.d[key]
+        if key in self.d:
+            return self.d[key]
+        else:
+            return self.linearly_interpolate(key)
 
     def __setitem__(self, key, item):
         if key not in self.d:

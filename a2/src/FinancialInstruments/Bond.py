@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+from operator import attrgetter
 
 ###########################
 ### Bond Data Structure ###
@@ -26,12 +28,12 @@ class DatedBond(Bond):
     A class representing a bond at a current date.
     The data contained in this class is only valid for a specific date.
     """
-    date: str
+    date: np.datetime64
     maturity_period: int
     coupon_periods: list[int]
 
     def __init__(self, isin: str, fv: float, coupon: float, 
-                 date: str, price: float,
+                 date: np.datetime64, price: float,
                  maturity_period: int, coupon_periods: list[int]) -> None:
         super().__init__(isin, fv, coupon)
         self.date = date
@@ -39,6 +41,9 @@ class DatedBond(Bond):
         self.maturity_period = maturity_period
         self.coupon_periods = coupon_periods
 
+
+def sort_bond_list(lst: list[DatedBond]) -> list[DatedBond]:
+    return sorted(lst, key=attrgetter("date"))
 
 #############################
 ### Bond Data Consumption ###
@@ -60,7 +65,7 @@ def get_dated_bonds(df: pd.DataFrame) -> list[DatedBond]:
     Given a pandas DataFrame with the correct columns, returns a list of dated bonds sorted
     in order of maturity period.
     """
-    df = df.sort_values("Maturity_Period", ascending=True)
+    df = df.sort_values("Maturity Period", ascending=True)
     bonds = []
     for _, row in df.iterrows():
         bonds.append(DatedBond(row["ISIN"],
@@ -135,8 +140,10 @@ def consume_price_csv(filename: str, bond_info: pd.DataFrame) -> pd.DataFrame:
     df["Price"] = df["Price"] * df["FV"] / 100.0
     df["Last Coupon Payment Date"] = df.apply(get_last_coupon_payment_date, axis=1)
     df["Coupon Periods"] = df.apply(get_future_coupon_payments, axis=1)
-    df["Dirty Price"] = df["Price"] + (df["FV"] * df["Coupon"]/2.0) * (df["Date Collected"] - df["Last Coupon Payment Date"]).dt.days / (365/2)
-    df["Maturity Period"] = (df["Maturity Date"] - df["Date Collected"]).dt.days
+    df["Dirty Price"] = df["Price"] + (df["FV"] * df["Coupon"]/2.0) * (df["Price Date"] - df["Last Coupon Payment Date"]).dt.days / (365/2)
+    df["Maturity Period"] = (df["Maturity Date"] - df["Price Date"]).dt.days
+    
+    return df
 
 
 def process_bond_data(info_filename: str, price_filename: str, save_filename: str|None=None) -> pd.DataFrame:
