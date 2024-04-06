@@ -67,8 +67,8 @@ class StockCompany(Company):
         """
         return Option(self.assets, self.debt, self.rates[period], period/365, self.stock.volatility)
 
-    def print_stats(self, period: int) -> None:
-        print(f"Company: {self.name}, Period={period}\n" + 
+    def print_stats(self) -> None:
+        print(f"Company: {self.name}\n" + 
               f"Assets: {self.assets}\n" +
               f"Equity: {self.equity}\n" + 
               f"Debt: {self.debt}")

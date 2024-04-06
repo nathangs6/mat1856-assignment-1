@@ -15,10 +15,14 @@ def merton_experiment():
     rbc = StockCompany("RBC", bonds, stock, 1857.917, 1857.917)
     rbc.equity = 1500
     rbc.get_rates()
-    rbc.print_stats(365)
+    rbc.print_stats()
     mm = MertonModel(rbc)
-    av = mm.find_asset_volatility(365, method="fixed")
+    av = mm.find_asset_volatility(method="fixed")
     print(f"Asset volatility = {av*100}%")
+    periods = [365*i for i in range(1, 10)]
+    default_probs = mm.get_default_probs(periods)
+    print([str(x*100)+"%" for x in default_probs])
+
 
 
 def credit_metrics_experiment():
@@ -34,9 +38,10 @@ def credit_metrics_experiment():
     cm.setup()
     periods = np.array([1, 2, 3, 4, 5]) * 365
     default_probs = cm.get_default_probs(periods)
-    cm.plot_default_probs(periods, default_probs, "rbc_cm_defaults.pdf")
+    print([str(x*100)+"%" for x in default_probs])
+    #cm.plot_default_probs(periods, default_probs, "rbc_cm_defaults.pdf")
 
 
 if __name__ == "__main__":
-    merton_experiment()
-    #credit_metrics_experiment()
+    #merton_experiment()
+    credit_metrics_experiment()

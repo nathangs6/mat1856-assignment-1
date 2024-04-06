@@ -66,8 +66,8 @@ class MertonModel(FinancialModel):
         self.company.get_rates()
         self.company.stock.compute_volatility(stock_price_file)
 
-    def fixed_point(self, period: int, equity_vol: float):
-        option = self.company.make_option(period)
+    def _fixed_point(self, equity_vol: float):
+        option = self.company.make_option(365)
         S = self.company.equity
         V = self.company.assets
         tol = 1e-9
@@ -83,10 +83,20 @@ class MertonModel(FinancialModel):
             print(f"Fixed point iteration did not converge in {max_iter} steps!")
         return option.volatility
 
-    def find_asset_volatility(self, period: int, method: str):
+    def find_asset_volatility(self, method: str):
         equity_vol = self.company.stock.volatility
         if method == "fixed":
-            asset_volatility = self.fixed_point(period, equity_vol)
+            asset_volatility = self._fixed_point(equity_vol)
         else:
             raise ValueError
         return asset_volatility
+    
+    def get_default_probs(self, periods: list[int]) -> list[float]:
+        option = self.company.make_option(365)
+        asset_volatility = self.find_asset_volatility(method="fixed")
+        option.volatility = asset_volatility
+        default_probs = []
+        for period in periods:
+            option.t = period/365
+            default_probs.append(1. - option.get_probability_of_exercise())
+        return default_probs

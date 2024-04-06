@@ -14,8 +14,7 @@ class TestMerton:
         gr.assets = 6.826
         gr.rates = BinarySortedDict()
         gr.rates[365] = 0.0317
-        gr.print_stats(365)
 
         mm = MertonModel(gr)
-        vol = mm.find_asset_volatility(365, "fixed")
+        vol = mm.find_asset_volatility("fixed")
         assert abs(vol - 0.15108448114640016) < TOL

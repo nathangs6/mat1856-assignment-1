@@ -55,3 +55,15 @@ class Option:
         b = v**2 * t / 2
         c = v * np.sqrt(t)
         return N((a + b) / c)
+    
+    def get_probability_of_exercise(self) -> float:
+        A = self.strike_price * np.exp(-self.r * self.t)
+        V = self.underlying_price
+        v = self.volatility
+        t = self.t
+        a = np.log(V / A)
+        b = 0.5 * v**2 * t
+        c = v * np.sqrt(t)
+        d1 = (a + b) / c
+        d2 = d1 - v * np.sqrt(t)
+        return N(d2)
