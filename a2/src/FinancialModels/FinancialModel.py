@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 import matplotlib.pyplot as plt
 from src.FinancialEntity.Company import Company, StockCompany
 
@@ -49,13 +50,32 @@ class CreditMetricModel(FinancialModel):
         return 1 - (np.exp(-h) - R) / (1 - R)
 
 
-class MertonModel(FinancialModel):    
+class MertonModel(FinancialModel):
+    fixed_point: float
+
     def __init__(self, company: StockCompany) -> None:
         super().__init__(company)
+        self.fixed_point = None
 
     def setup(self, stock_price_file: str):
         self.company.get_rates()
         self.company.stock.compute_volatility(stock_price_file)
 
-    def fixed_point_func(self, delta) -> float:
-        return self.company.stock.volatility * self.company.equity / delta / self.company.assets
+    def fixed_point_func(self, period: int, vol=None, verbose=False) -> float:
+        if vol is None:
+            vol = self.company.stock.volatility
+        delta = self.company.get_delta(period, vol)
+        if verbose:
+            print(f"vol={vol}, S={self.company.equity}, delta={delta}, V={self.company.assets}")
+        return vol * self.company.equity * delta / self.company.assets
+
+    def find_fixed_point(self, period: int) -> float:
+        vol = self.company.stock.volatility
+        delta = self.company.get_delta(period, vol)
+        print(f"Starting with vol, delta = {round(vol*100, 2), round(delta, 3)}")
+        for _ in range(1):
+            new_vol = self.fixed_point_func(period, vol=vol, verbose=True)
+            print(f"new_vol, old_vol = {new_vol, vol}")
+            vol = new_vol
+        print(f"Final fixed point found: {round(vol*100, 2)}")
+        self.fixed_point = vol

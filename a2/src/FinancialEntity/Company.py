@@ -3,6 +3,7 @@ from src.FinancialInstruments.Stock import DatedStock
 from src.BinarySortedDict.BinarySortedDict import BinarySortedDict
 from src.Bootstrapper.bootstrap import bootstrap
 import numpy as np
+import scipy
 
 
 class Company:
@@ -59,12 +60,45 @@ class StockCompany(Company):
             self.bonds.extend(bonds)
         self.bonds = sort_bond_list(self.bonds)
 
+    def get_strike(self, period: int) -> None:
+        if self.rates is None:
+            self.get_rates()
+        t = period/365
+        r = self.rates[period]
+        return self.debt * np.exp(r*t)
+
+    @staticmethod
+    def N(x):
+        return scipy.stats.norm.cdf(x)
+
+    def get_option_price(self, S, period, vol):
+        K = self.get_strike(period)
+        r = self.rates[period]
+        t = period/365
+        a = np.log(S / K)
+        b = vol**2 * t / 2.
+        c = vol * np.sqrt(t)
+        d1 = (a + b) / c
+        d2 = d1 - vol * np.sqrt(t)
+        return S * self.N(d1) - K * self.N(d2)
+
+    def get_delta(self, period, vol, ds=1/1e9) -> float:
+        t = period/365
+        a = np.log(self.assets / self.get_strike(period))
+        b = vol**2 * t / 2
+        c = vol * np.sqrt(t)
+        return scipy.stats.norm.cdf((a + b) / c)
+        #S = self.assets
+        #V1 = self.get_option_price(S+ds, period, vol)
+        #V2 = self.get_option_price(S-ds, period, vol)
+        #return (V1 - V2) / (2*ds)
+
     def print_stats(self, period: int) -> None:
         if self.rates is None:
             self.get_rates()
         print(f"Company: {self.name}, Period={period}\n" + 
               f"Assets: {self.assets}\n" +
               f"Equity: {self.equity}\n" + 
-              f"Strike: {self.debt * np.exp(self.rates[period] * period/365)}\n" + 
+              f"Strike: {self.get_strike(period)}\n" + 
               f"Volatility: {round(100*self.stock.volatility, 2)}%\n" + 
-              f"Rate: {round(self.rates[period], 2)}%")
+              f"Rate: {round(self.rates[period]*100, 2)}%")

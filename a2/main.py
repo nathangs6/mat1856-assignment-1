@@ -12,16 +12,12 @@ def merton_experiment():
     stock = DatedStock(1408257000, "03-26-2024", 135.16)
     stock.compute_volatility("data/rbc_stock_prices.csv")
     #rbc = Company("RBC", stock, bonds, 1857.917, 1241.168)
-    rbc = StockCompany("RBC", stock, bonds, 1857.917, 1857.917)
+    rbc = StockCompany("RBC", bonds, stock, 1857.917, 1857.917)
+    rbc.equity = 1500
     rbc.get_rates()
     rbc.print_stats(365)
-    d1 = 0.802
-    mm = MertonModel(None, rbc)
-    print(f"{round(mm.fixed_point_func(d1)*100, 2)}%")
-    d2 = 1.0
-    print(f"{round(mm.fixed_point_func(d2)*100, 2)}%")
-    d3 = 1.0
-    print(f"{round(mm.fixed_point_func(d3)*100, 2)}%")  
+    mm = MertonModel(rbc)
+    mm.find_fixed_point(365)
 
 
 def credit_metrics_experiment():
@@ -40,11 +36,22 @@ def credit_metrics_experiment():
     cm.plot_default_probs(periods, default_probs, "rbc_cm_defaults.pdf")
 
 
-def rbc_bond_experiment():
-    bond_data = process_bond_data("data/rbc_bond_info.csv", "data/rbc_bond_prices.csv")
-    bonds = get_dated_bonds(bond_data)
-    print(bootstrap(bonds))
+def goodrich_test():
+    from src.BinarySortedDict.BinarySortedDict import BinarySortedDict
+    gr_stock = DatedStock(117540000,"01-03-2003",17.76)
+    gr_stock.volatility = 0.4959
+    gr = StockCompany("Goodrich", [], gr_stock, 0, 0)
+    gr.debt = 4.759
+    gr.assets = 6.826
+    gr.rates = BinarySortedDict()
+    gr.rates[365] = 0.0317
+    gr.print_stats(365)
+
+    mm = MertonModel(gr)
+    mm.find_fixed_point(365)
 
 
 if __name__ == "__main__":
-    credit_metrics_experiment()
+    #merton_experiment()
+    #credit_metrics_experiment()
+    goodrich_test()
