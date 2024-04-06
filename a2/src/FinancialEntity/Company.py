@@ -59,39 +59,47 @@ class StockCompany(Company):
         else:
             self.bonds.extend(bonds)
         self.bonds = sort_bond_list(self.bonds)
+    
+    def get_strike(self) -> None:
+        return self.debt
 
-    def get_strike(self, period: int) -> None:
+    def get_discounted_strike(self, period: int) -> None:
         if self.rates is None:
             self.get_rates()
         t = period/365
         r = self.rates[period]
-        return self.debt * np.exp(r*t)
+        return self.get_strike() * np.exp(-r*t)
 
     @staticmethod
     def N(x):
         return scipy.stats.norm.cdf(x)
 
-    def get_option_price(self, S, period, vol):
-        K = self.get_strike(period)
-        r = self.rates[period]
+    def get_option_price(self, period: int, vol: float=None, V: float=None):
+        if vol is None:
+            vol = self.stock.volatility
+        if S is None:
+            S = self.assets
+        A = self.get_discounted_strike(period)
         t = period/365
-        a = np.log(S / K)
-        b = vol**2 * t / 2.
+        a = np.log(S / A)
+        b = 0.5 * vol**2 * t
         c = vol * np.sqrt(t)
         d1 = (a + b) / c
         d2 = d1 - vol * np.sqrt(t)
-        return S * self.N(d1) - K * self.N(d2)
+        return V * self.N(d1) - A * self.N(d2)
 
-    def get_delta(self, period, vol, ds=1/1e9) -> float:
+    def get_delta(self, period, vol, dv=1/1e9) -> float:
         t = period/365
-        a = np.log(self.assets / self.get_strike(period))
+        V = self.assets
+        A = self.get_discounted_strike(period)
+        a = np.log(V/A)
         b = vol**2 * t / 2
         c = vol * np.sqrt(t)
         return scipy.stats.norm.cdf((a + b) / c)
-        #S = self.assets
-        #V1 = self.get_option_price(S+ds, period, vol)
-        #V2 = self.get_option_price(S-ds, period, vol)
-        #return (V1 - V2) / (2*ds)
+        #V = self.assets
+        #S1 = self.get_option_price(period, vol, V+dv)
+        #S2 = self.get_option_price(period, vol, V-dv)
+        #return (S1 - S2) / (2*dv)
 
     def print_stats(self, period: int) -> None:
         if self.rates is None:
@@ -99,6 +107,14 @@ class StockCompany(Company):
         print(f"Company: {self.name}, Period={period}\n" + 
               f"Assets: {self.assets}\n" +
               f"Equity: {self.equity}\n" + 
-              f"Strike: {self.get_strike(period)}\n" + 
+              f"Strike: {self.get_strike()}\n" + 
               f"Volatility: {round(100*self.stock.volatility, 2)}%\n" + 
               f"Rate: {round(self.rates[period]*100, 2)}%")
+        
+    def print_black_scholes(self, period: int, vol: float=None) -> None:
+        if self.rates is None:
+            self.get_rates()
+        print(f"C={round(self.get_option_price(period, vol, self.assets), 3)}," +
+              f"S={round(self.assets, 3)}," +
+              f"A={round(self.get_discounted_strike(period), 3)}," +
+              f"delta={round(self.get_delta(period, vol), 3)}")

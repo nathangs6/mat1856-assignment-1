@@ -1,6 +1,7 @@
 import numpy as np
 import scipy
 import matplotlib.pyplot as plt
+import scipy.optimize
 from src.FinancialEntity.Company import Company, StockCompany
 
 
@@ -61,21 +62,34 @@ class MertonModel(FinancialModel):
         self.company.get_rates()
         self.company.stock.compute_volatility(stock_price_file)
 
-    def fixed_point_func(self, period: int, vol=None, verbose=False) -> float:
-        if vol is None:
-            vol = self.company.stock.volatility
-        delta = self.company.get_delta(period, vol)
-        if verbose:
-            print(f"vol={vol}, S={self.company.equity}, delta={delta}, V={self.company.assets}")
-        return vol * self.company.equity * delta / self.company.assets
+    def get_asset_vol(self, vol: float, V: float, S: float, delta: float) -> float:
+        return vol * S * delta / V
 
-    def find_fixed_point(self, period: int) -> float:
-        vol = self.company.stock.volatility
+    def non_simul(self, period: int, vol_equity: float):
+        vol = vol_equity
+        S = self.company.equity
+        V = self.company.assets
         delta = self.company.get_delta(period, vol)
-        print(f"Starting with vol, delta = {round(vol*100, 2), round(delta, 3)}")
-        for _ in range(1):
-            new_vol = self.fixed_point_func(period, vol=vol, verbose=True)
-            print(f"new_vol, old_vol = {new_vol, vol}")
-            vol = new_vol
-        print(f"Final fixed point found: {round(vol*100, 2)}")
-        self.fixed_point = vol
+        return self.get_asset_vol(vol, V, S, delta)
+    
+    def simul(self, period: int, vol_equity: float):
+        V = self.company.assets
+        def equation(x: np.array) -> np.array:
+            """
+            Returns the asset volatility.
+
+            === Parameters ===
+            - x[0]: the current prediction for asset volatility
+            - x[1]: the current prediction of option price
+            """
+            delta = self.company.get_delta(period, x[0])
+            return x[0] - self.get_asset_vol(x[0], V, x[1], delta), 0.
+        x0 = np.array([vol_equity, self.company.equity])
+        scipy.optimize.fsolve(equation, x0)
+
+    def find_asset_volatility(self, period: int):
+        vol_equity = self.company.stock.volatility
+        asset_volatility = self.simul(period, vol_equity)
+        print(f"Simul: {asset_volatility}")
+        asset_volatility = self.non_simul(period, vol_equity)
+        print(f"Non-simul: {100*asset_volatility}%")

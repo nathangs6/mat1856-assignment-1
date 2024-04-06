@@ -41,14 +41,14 @@ def goodrich_test():
     gr_stock = DatedStock(117540000,"01-03-2003",17.76)
     gr_stock.volatility = 0.4959
     gr = StockCompany("Goodrich", [], gr_stock, 0, 0)
-    gr.debt = 4.759
-    gr.assets = 6.826
+    gr.debt = 4759.
+    gr.assets = 6826.
     gr.rates = BinarySortedDict()
     gr.rates[365] = 0.0317
     gr.print_stats(365)
 
     mm = MertonModel(gr)
-    mm.find_fixed_point(365)
+    mm.find_asset_volatility(365)
 
 
 if __name__ == "__main__":
