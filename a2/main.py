@@ -17,7 +17,8 @@ def merton_experiment():
     rbc.get_rates()
     rbc.print_stats(365)
     mm = MertonModel(rbc)
-    mm.find_fixed_point(365)
+    av = mm.find_asset_volatility(365, method="fixed")
+    print(f"Asset volatility = {av*100}%")
 
 
 def credit_metrics_experiment():
@@ -36,22 +37,6 @@ def credit_metrics_experiment():
     cm.plot_default_probs(periods, default_probs, "rbc_cm_defaults.pdf")
 
 
-def goodrich_test():
-    from src.BinarySortedDict.BinarySortedDict import BinarySortedDict
-    gr_stock = DatedStock(117540000,"01-03-2003",17.76)
-    gr_stock.volatility = 0.4959
-    gr = StockCompany("Goodrich", [], gr_stock, 0, 0)
-    gr.debt = 4759.
-    gr.assets = 6826.
-    gr.rates = BinarySortedDict()
-    gr.rates[365] = 0.0317
-    gr.print_stats(365)
-
-    mm = MertonModel(gr)
-    mm.find_asset_volatility(365)
-
-
 if __name__ == "__main__":
-    #merton_experiment()
+    merton_experiment()
     #credit_metrics_experiment()
-    goodrich_test()

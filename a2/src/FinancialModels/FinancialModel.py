@@ -3,6 +3,7 @@ import scipy
 import matplotlib.pyplot as plt
 import scipy.optimize
 from src.FinancialEntity.Company import Company, StockCompany
+from src.FinancialInstruments.Option import Option
 
 
 class FinancialModel:
@@ -51,45 +52,41 @@ class CreditMetricModel(FinancialModel):
         return 1 - (np.exp(-h) - R) / (1 - R)
 
 
+def volatility_equation(vs: float, V: float, S: float, delta: float) -> float:
+    return vs * S * delta / V
+
+
 class MertonModel(FinancialModel):
-    fixed_point: float
+    option: Option
 
     def __init__(self, company: StockCompany) -> None:
         super().__init__(company)
-        self.fixed_point = None
 
     def setup(self, stock_price_file: str):
         self.company.get_rates()
         self.company.stock.compute_volatility(stock_price_file)
 
-    def get_asset_vol(self, vol: float, V: float, S: float, delta: float) -> float:
-        return vol * S * delta / V
-
-    def non_simul(self, period: int, vol_equity: float):
-        vol = vol_equity
+    def fixed_point(self, period: int, equity_vol: float):
+        option = self.company.make_option(period)
         S = self.company.equity
         V = self.company.assets
-        delta = self.company.get_delta(period, vol)
-        return self.get_asset_vol(vol, V, S, delta)
-    
-    def simul(self, period: int, vol_equity: float):
-        V = self.company.assets
-        def equation(x: np.array) -> np.array:
-            """
-            Returns the asset volatility.
+        tol = 1e-9
+        new_vol = equity_vol
+        option.volatility = np.inf
+        i, max_iter = 0, 1000
+        while abs(new_vol - option.volatility) > tol and i < max_iter:
+            option.volatility = new_vol
+            delta = option.delta()
+            new_vol = volatility_equation(equity_vol, V, S, delta)
+            i += 1
+        if i == max_iter:
+            print(f"Fixed point iteration did not converge in {max_iter} steps!")
+        return option.volatility
 
-            === Parameters ===
-            - x[0]: the current prediction for asset volatility
-            - x[1]: the current prediction of option price
-            """
-            delta = self.company.get_delta(period, x[0])
-            return x[0] - self.get_asset_vol(x[0], V, x[1], delta), 0.
-        x0 = np.array([vol_equity, self.company.equity])
-        scipy.optimize.fsolve(equation, x0)
-
-    def find_asset_volatility(self, period: int):
-        vol_equity = self.company.stock.volatility
-        asset_volatility = self.simul(period, vol_equity)
-        print(f"Simul: {asset_volatility}")
-        asset_volatility = self.non_simul(period, vol_equity)
-        print(f"Non-simul: {100*asset_volatility}%")
+    def find_asset_volatility(self, period: int, method: str):
+        equity_vol = self.company.stock.volatility
+        if method == "fixed":
+            asset_volatility = self.fixed_point(period, equity_vol)
+        else:
+            raise ValueError
+        return asset_volatility
