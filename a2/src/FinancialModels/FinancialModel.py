@@ -34,10 +34,16 @@ class CreditMetricModel(FinancialModel):
     def __init__(self, gov: Company, com: Company) -> None:
         super().__init__(com)
         self.government = gov
+
+    def print_stats(self) -> None:
+        print(f"Government: {self.government.name}\n" + 
+              f"Company: {self.company.name}\n" + 
+              f"Recovery Rate: {self.company.get_recovery_rate()}\n" +
+              f"Annual Default Probability: {(1 - self.get_q())*100}%")
     
     def setup(self):
-        self.government.get_rates()
-        self.company.get_rates()
+        self.government.compute_rates()
+        self.company.compute_rates()
 
     def gen_hazard_rates(self, periods: np.array) -> np.array:
         h = np.zeros_like(periods, dtype=float)
@@ -50,6 +56,21 @@ class CreditMetricModel(FinancialModel):
         h = self.gen_hazard_rates(periods)
         
         return 1 - (np.exp(-h) - R) / (1 - R)
+    
+    def get_q(self):
+        h = self.gen_hazard_rates([365])[0]
+        R = self.company.get_recovery_rate()
+        return (np.exp(-h) - R) / (1 - R)
+    
+    def get_annual_default_probs(self, num_years: int) -> list:
+        q = self.get_q()
+        A = np.array([[q, 1-q],[0,1]])
+        default_probs = []
+        for _ in range(num_years):
+            default_probs.append(A[0,1])
+            A = A @ A
+        return default_probs
+
 
 
 def volatility_equation(vs: float, V: float, S: float, delta: float) -> float:
@@ -62,8 +83,16 @@ class MertonModel(FinancialModel):
     def __init__(self, company: StockCompany) -> None:
         super().__init__(company)
 
+    def print_stats(self) -> None:
+        print(f"Company: {self.company.name}\n" +
+              f"Assets: {self.company.assets}\n" +
+              f"Equity: {self.company.equity}\n" +
+              f"Debt: {self.company.debt}\n" +
+              f"Stock Volatility: {100*self.company.stock.volatility}\n" +
+              f"Asset Volatility: {100*self.find_asset_volatility("fixed")}")
+
     def setup(self, stock_price_file: str):
-        self.company.get_rates()
+        self.company.compute_rates()
         self.company.stock.compute_volatility(stock_price_file)
 
     def _fixed_point(self, equity_vol: float):

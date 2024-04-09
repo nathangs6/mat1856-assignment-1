@@ -35,8 +35,16 @@ class Company:
             self.bonds.extend(bonds)
         self.bonds = sort_bond_list(self.bonds)
     
-    def get_rates(self):
+    def compute_rates(self):
         self.rates = bootstrap(self.bonds)
+
+    def get_rates(self, periods: list[int]) -> list[float]:
+        if self.rates is None:
+            self.compute_rates()
+        rates = []
+        for period in periods:
+            rates.append(self.rates[period])
+        return rates
 
 
 class StockCompany(Company):
