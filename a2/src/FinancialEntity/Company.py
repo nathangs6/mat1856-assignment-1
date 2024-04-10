@@ -8,64 +8,83 @@ import scipy
 
 
 class Company:
+    """
+    Class representing a company.
+
+    === Attributes ===
+    - name: the name of this company
+    - bonds: a sorted list of bonds this company has
+    - rates: the interest rates for this company
+    - recovery_rate: this companies recovery rate, defaults to 50%
+    """
     name: str
     bonds: list[DatedBond]
     rates: BinarySortedDict | None
     recovery_rate: float | None
-    spread: float | None
 
-    def __init__(self, name: str, bonds: list[Bond]) -> None:
+    def __init__(self, name: str, bonds: list[DatedBond], recovery_rate: float=0.5) -> None:
         self.name = name
-        self.bonds = bonds
+        self.bonds = sort_bond_list(bonds)
         self.rates = None
-        self.recovery_rate = None
+        self.recovery_rate = recovery_rate
 
     def get_recovery_rate(self) -> float:
-        if self.recovery_rate is None or \
-            self.recovery_rate < 0 or \
-            self.recovery_rate > 1:
-            raise AttributeError("Please ensure the recovery rate is between 0 and 1!")
         return self.recovery_rate
 
     def set_recovery_rate(self, r: float) -> None:
-        self.recovery_rate = r
+        """
+        Sets the recovery rate for this company.
 
-    def add_bonds(self, bonds: Bond|list[Bond]) -> None:
-        if isinstance(bonds, Bond):
-            self.bonds.append(bonds)
-        else:
-            self.bonds.extend(bonds)
-        self.bonds = sort_bond_list(self.bonds)
+        === Prerequisites ===
+        - 0 <= r <= 1
+        """
+        if not isinstance(r, float):
+            raise ValueError("r must be a float!")
+        if r <= 0 or r >= 1:
+            raise ValueError("r must lie in [0, 1]")
+        self.recovery_rate = r
     
     def compute_rates(self):
+        """
+        Computes the rates for this company by bootstrapping its bonds.
+        """
         self.rates = bootstrap(self.bonds)
 
     def get_rates(self, periods: list[int]) -> list[float]:
+        """
+        Gets the rates for reach period in periods.
+
+        Periods should be in units of days.
+        """
         if self.rates is None:
             self.compute_rates()
         rates = []
         for period in periods:
+            if period < 0:
+                raise ValueError("Please provide a non-negative integer!")
             rates.append(self.rates[period])
         return rates
 
 
 class StockCompany(Company):
+    """
+    A class representing a company with a stock.
+
+    === Attributes ===
+    stock: the Stock associated with this company.
+    assets: the reported assets this company has
+    equity: the equity this company has
+    debt: the debt this company has
+    """
     stock: DatedStock
     assets: float
     equity: float
     debt: float
     
     def __init__(self, name: str, bonds: list[Bond], stock: DatedStock,
-                 assets: float, equity: float, debt: float) -> None:
-        self.name = name
+                 assets: float, equity: float, debt: float, recovery_rate: float=0.5) -> None:
+        super().__init__(name, bonds, recovery_rate)
         self.stock = stock
-        self.bonds = bonds
         self.assets = assets
         self.equity = equity
-        self.debt = debt 
-
-    def print_stats(self) -> None:
-        print(f"Company: {self.name}\n" + 
-              f"Assets: {self.assets}\n" +
-              f"Equity: {self.equity}\n" + 
-              f"Debt: {self.debt}")
+        self.debt = debt

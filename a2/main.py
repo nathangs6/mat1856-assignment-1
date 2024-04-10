@@ -2,7 +2,7 @@ from src.Bootstrapper.bootstrap import bootstrap
 from src.FinancialInstruments.Bond import get_dated_bonds, process_bond_data, sort_bond_list, compute_spread
 from src.FinancialInstruments.Stock import DatedStock
 from src.FinancialEntity.Company import Company, StockCompany
-from src.FinancialModels.FinancialModel import MertonModel, CreditMetricModel
+from src.FinancialModels.FinancialModel import MertonModel, CreditMetricsModel
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -48,7 +48,7 @@ def credit_metrics_experiment(num_years: int, com_constructor: callable) -> list
     company = com_constructor()
     company.set_recovery_rate(0.5)
 
-    cm = CreditMetricModel(canada, company)
+    cm = CreditMetricsModel(canada, company)
 
     ### Credit Metric Specific Results
     cm.print_stats()
