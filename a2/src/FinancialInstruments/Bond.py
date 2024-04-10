@@ -49,11 +49,21 @@ class DatedBond(Bond):
 ### Bond Functions ###
 ######################
 def sort_bond_list(lst: list[DatedBond]) -> list[DatedBond]:
+    """
+    Sorts lst according to date.
+    """
     return sorted(lst, key=attrgetter("date"))
 
 
 ### YTM Computations
-def ytm(bond: DatedBond, ytm: float) -> float:
+def ytm_price(bond: DatedBond, ytm: float) -> float:
+    """
+    Computes the price of bond with the ytm value given.
+
+    === Parameters ===
+    - bond: the bond to compute the price of
+    - ytm: the ytm to use
+    """
     P = 0
     for period in bond.coupon_periods:
         t = period/365
@@ -62,7 +72,10 @@ def ytm(bond: DatedBond, ytm: float) -> float:
     return P + bond.notional * np.exp(-ytm*t) - bond.price
 
 
-def d_ytm(bond: Bond, ytm: float) -> float:
+def d_ytm_price(bond: Bond, ytm: float) -> float:
+    """
+    Derivative of the ytm_price function with respect to ytm.
+    """
     P = 0
     for period in bond.coupon_periods:
         t = period/365
@@ -71,24 +84,26 @@ def d_ytm(bond: Bond, ytm: float) -> float:
     return P - bond.notional * t * np.exp(-ytm*t)
 
 
-def newton_raphson_ytm(bond: Bond) -> float:
+def newton_raphson_ytm(bond: Bond, max_iter: int = 1000) -> float:
+    """
+    Uses the Newton-Raphson method to solve for YTM.
+    """
     old_ytm = np.inf
     new_ytm = 0.03
     TOL = 1e-6
-    num_iter = 1000
     i = 0
-    while i < num_iter and np.abs(new_ytm - old_ytm) > TOL:
+    while i < max_iter and np.abs(new_ytm - old_ytm) > TOL:
         old_ytm = new_ytm
-        new_ytm = old_ytm - ytm(bond, old_ytm)/d_ytm(bond, old_ytm)
+        new_ytm = old_ytm - ytm_price(bond, old_ytm)/d_ytm_price(bond, old_ytm)
         i += 1
-    if i == num_iter:
+    if i == max_iter:
         print("Max number of iterations reached.")
     return new_ytm
 
 
 def compute_spread(gov: DatedBond, com: DatedBond) -> float:
     """
-    Returns the spread between the government bond and the company bond.
+    Returns the spread in decimal between the government bond and the company bond.
     Formula: spread = company YTM - gov YTM
 
     === Prerequisites ===

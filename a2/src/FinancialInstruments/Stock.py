@@ -21,15 +21,25 @@ class DatedStock(Stock):
         self.volatility = None
 
     def compute_volatility(self, price_data: pd.DataFrame|str) -> None:
+        """
+        Computes the volatility of this stocks log interday returns.
+
+        === Parameters ===
+        - price_data: the daily historical price data for this stock.
+                      Must have column "Price Date" and "Price".
+        """
         if isinstance(price_data, str):
             price_data = consume_price_csv(price_data)
         df = price_data
-        #df = df[df["Price Date"] <= pd.to_datetime(self.date)]
-        df["Interday Return"] = np.log(df["Price"] / df["Price"].shift(1))
-        self.volatility = df["Interday Return"].std(ddof=0) * np.sqrt(252)
+        df = df[df["Price Date"] <= pd.to_datetime(self.date)]
+        interday_returns = np.log(df["Price"] / df["Price"].shift(1))
+        self.volatility = interday_returns.std(ddof=0) * np.sqrt(252)
 
 
 def consume_price_csv(filename: str) -> pd.DataFrame:
+    """
+    Constructs a historical price dataframe using the csv file found at filename.
+    """
     df = pd.read_csv(filename)
     try:
         df["Price Date"] = pd.to_datetime(df["Date"], format="%m/%d/%y")
@@ -38,13 +48,3 @@ def consume_price_csv(filename: str) -> pd.DataFrame:
     df["Price"] = df["Close"]
     df = df[["Price Date", "Price"]]
     return df
-
-
-if __name__ == "__main__":
-    import os
-    curr_dir = os.path.dirname(__file__)
-    filename = os.path.join(curr_dir, '..', '..', 'data', 'rbc_stock_prices.csv')
-    price_data = consume_price_csv(filename)
-    stock = DatedStock(1408257000, "03/25/2024", 99.42)
-    stock.compute_volatility(price_data)
-    print(stock.volatility)

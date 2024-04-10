@@ -14,96 +14,6 @@ def construct_canada() -> Company:
     return canada
 
 
-def construct_loblaws() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/loblaws_bond_info.csv",
-                                                     "data/loblaws_bond_prices.csv"))
-    stock = DatedStock(310526379, "03-26-2024", 151.88)
-    stock.compute_volatility("data/loblaws_stock_prices.csv")
-    loblaws = StockCompany("Loblaws", bonds, stock, 37.734, 11.472, 17.555)
-    return loblaws
-
-
-def construct_bombardier() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/bombardier_bond_info.csv",
-                                                     "data/bombardier_bond_prices.csv"))
-    stock = DatedStock(98000000, "03-26-2024", 61.42)
-    stock.compute_volatility("data/bombardier_stock_prices.csv")
-    bombardier = StockCompany("Bombardier", bonds, stock, 12.458, -2.404, 14.862)
-    return bombardier
-
-
-def construct_telus() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/telus_bond_info.csv",
-                                                     "data/telus_bond_prices.csv"))
-    stock = DatedStock(1468000000, "03-26-2024", 21.46)
-    stock.compute_volatility("data/telus_stock_prices.csv")
-    telus = StockCompany("Telus", bonds, stock, 42.40, 42.40-29.33, 20.73)
-    return telus
-
-
-def construct_pembina() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/pembina_bond_info.csv",
-                                                     "data/pembina_bond_prices.csv"))
-    stock = DatedStock(549000000, "03-26-2024", 47.33)
-    stock.compute_volatility("data/pembina_stock_prices.csv")
-    pembina = StockCompany("Pembina Pipelines", bonds, stock, 31.038, 15.696, 11.366)
-    return pembina
-
-
-def construct_slate() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/slate_bond_info.csv",
-                                                     "data/slate_bond_prices.csv"))
-    stock = DatedStock(549000000, "03-26-2024", 0.74)
-    stock.compute_volatility("data/slate_stock_prices.csv")
-    slate = StockCompany("Slate Office REIT", bonds, stock, 1747.860, 515.370, 1178.734)
-    return slate
-
-
-def construct_ecn() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/ecn_bond_info.csv",
-                                                     "data/ecn_bond_prices.csv"))
-    stock = DatedStock(549000000, "03-26-2024", 0.74)
-    stock.compute_volatility("data/ecn_stock_prices.csv")
-    ecn = StockCompany("ECN Capital", bonds, stock, 1284.833, 209.488, 1075.345)
-    return ecn
-
-
-def construct_bmo() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/bmo_bond_info.csv",
-                                                     "data/bmo_bond_prices.csv"))
-    stock = DatedStock(549000000, "03-26-2024", 0.74)
-    stock.compute_volatility("data/bmo_stock_prices.csv")
-    ecn = StockCompany("BMO", bonds, stock, 1324.762, 77.279, 1247.483)
-    return ecn
-
-
-def construct_ct() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/ct_bond_info.csv",
-                                                     "data/ct_bond_prices.csv"))
-    stock = DatedStock(549000000, "03-26-2024", 0.74)
-    stock.compute_volatility("data/ct_stock_prices.csv")
-    ct = StockCompany("Canadian Tire", bonds, stock, 21.9783, 6.4448, 15.5335)
-    return ct
-
-
-def construct_dollarama() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/dollarama_bond_info.csv",
-                                                     "data/dollarama_bond_prices.csv"))
-    stock = DatedStock(278760000, "03-26-2024", 109.97)
-    stock.compute_volatility("data/dollarama_stock_prices.csv")
-    d = StockCompany("Dollarama", bonds, stock, 5263.607, 380.848, 4506.665)
-    return d
-
-
-def construct_sru() -> StockCompany:
-    bonds = get_dated_bonds(process_bond_data("data/sru_bond_info.csv",
-                                                     "data/sru_bond_prices.csv"))
-    stock = DatedStock(278760000, "03-26-2024", 109.97)
-    stock.compute_volatility("data/sru_stock_prices.csv")
-    d = StockCompany("SRU", bonds, stock, 11905.422, 6359.304, 5546.118)
-    return d
-
-
 def construct_brookfield() -> StockCompany:
     bonds = get_dated_bonds(process_bond_data("data/brookfield_bond_info.csv",
                                                      "data/brookfield_bond_prices.csv"))
@@ -144,7 +54,8 @@ def credit_metrics_experiment(num_years: int, com_constructor: callable) -> list
     cm.print_stats()
     periods = np.arange(1, 6)
     gov_rates = np.array(canada.get_rates(periods*365))*100
-    #rbc_rates = rbc.get_rates(periods)
+
+    ### Plot rates
     fig, ax = plt.subplots(1,1, figsize=(10,3))
     ax.set_title("Canada vs. BEP Rates")
     ax.set_xlabel("Time (years)")
@@ -159,19 +70,23 @@ def credit_metrics_experiment(num_years: int, com_constructor: callable) -> list
 
 
 if __name__ == "__main__":
+    ### Get default probabilities
     com_constructor = construct_brookfield
     num_years = 20
     periods = [i for i in range(1, num_years+1)]
     mm_default_probs = merton_experiment(num_years, com_constructor)
     print("")
     cm_default_probs = credit_metrics_experiment(num_years, com_constructor)
+
+    ### Display results
     print("\n=== RESULTS ===")
     for i in range(num_years):
         mm_default_probs[i] *= 100
         cm_default_probs[i] *= 100
-    print(f"Merton Probs: {mm_default_probs}")
-    print(f"CreditMetric Probs: {cm_default_probs}")
+    print(f"Merton Probs: {[round(p,2) for p in mm_default_probs]}")
+    print(f"CreditMetric Probs: {[round(p,2) for p in cm_default_probs]}")
 
+    ### Plot results
     fig, ax = plt.subplots(1, 1, figsize=(10,3))
     ax.set_title("BEP-UN.TO Default Probability")
     ax.set_xlabel("Time (years)")

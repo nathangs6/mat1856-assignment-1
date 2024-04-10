@@ -42,9 +42,9 @@ class CreditMetricModel(FinancialModel):
     def print_stats(self) -> None:
         print(f"Government: {self.government.name}\n" + 
               f"Company: {self.company.name}\n" + 
-              f"Recovery Rate: {self.company.get_recovery_rate()}\n" +
+              f"Recovery Rate: {self.company.get_recovery_rate()*100}%\n" +
               f"Spread: {round(self.spread/0.0001)}\n" +
-              f"Annual Default Probability: {(1 - self.get_q())*100}%")
+              f"Annual Default Probability: {round((1 - self.get_q())*100,2)}%")
         
     def get_spread(self) -> float:
         c_bond = self.company.bonds[0]
@@ -93,8 +93,8 @@ class MertonModel(FinancialModel):
               f"Assets: {self.company.assets}\n" +
               f"Equity: {self.company.equity}\n" +
               f"Debt: {self.company.debt}\n" +
-              f"Stock Volatility: {100*self.company.stock.volatility}\n" +
-              f"Asset Volatility: {100*asset_volatility}\n" +
+              f"Stock Volatility: {round(100*self.company.stock.volatility,2)}%\n" +
+              f"Asset Volatility: {round(100*asset_volatility,2)}%\n" +
               f"Derived Assets: {assets}")
 
     def setup(self, stock_price_file: str):
@@ -103,41 +103,11 @@ class MertonModel(FinancialModel):
         self.company.compute_rates()
         self.company.stock.compute_volatility(stock_price_file)
 
-    """
-    def _fixed_point(self, equity_vol: float):
-        option = Option(self.company.assets,
-                        self.company.debt,
-                        self.government.rates[365],
-                        1.0,
-                        np.inf)
-        S = self.company.equity
-        V = self.company.assets
-        tol = 1e-9
-        new_vol = equity_vol
-        i, max_iter = 0, 1000
-        while abs(new_vol - option.volatility) > tol and i < max_iter:
-            option.volatility = new_vol
-            delta = option.delta()
-            new_vol = volatility_equation(equity_vol, V, S, delta)
-            i += 1
-        if i == max_iter:
-            print(f"Fixed point iteration did not converge in {max_iter} steps!")
-        return option.volatility
-
-    def find_asset_volatility(self, method: str):
-        equity_vol = self.company.stock.volatility
-        if method == "fixed":
-            asset_volatility = self._fixed_point(equity_vol)
-        else:
-            raise ValueError
-        return asset_volatility
-    """
-
     def fixed_point_equations(self, variables, sigma_S):
         V, sigma_V = variables
         option = Option(underlying_price=V,
                         strike_price=self.company.debt,
-                        r=self.government.rates[365],
+                        r=self.government.rates[365*10],
                         t=1.0,
                         volatility=sigma_V)
         E_calculated = option.price()
@@ -157,8 +127,6 @@ class MertonModel(FinancialModel):
             0.0,
             asset_volatility
         )
-        #asset_volatility = self.find_asset_volatility(method="fixed")
-        #option.volatility = asset_volatility
         survival_probs = []
         for y in range(1, num_years+1):
             option.r = self.government.rates[y*365]

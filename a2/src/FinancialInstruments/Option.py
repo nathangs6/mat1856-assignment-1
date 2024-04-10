@@ -34,36 +34,39 @@ class Option:
         self.t = t
         self.volatility = volatility
 
-    def price(self) -> float:
+    def _d_vals(self) -> tuple[float, float]:
+        """
+        Computes d1 and d2 used in the the Black-Scholes formula.
+        """
         A = self.strike_price * np.exp(-self.r * self.t)
         V = self.underlying_price
-        v = self.volatility
-        t = self.t
-        a = np.log(V / A)
-        b = 0.5 * v**2 * t
-        c = v * np.sqrt(t)
-        d1 = (a + b) / c
-        d2 = d1 - v * np.sqrt(t)
-        return V * N(d1) - A * N(d2)
-    
-    def delta(self) -> float:
-        V = self.underlying_price
-        A = self.strike_price * np.exp(-self.r * self.t)
         v = self.volatility
         t = self.t
         a = np.log(V/A)
-        b = v**2 * t / 2
-        c = v * np.sqrt(t)
-        return N((a + b) / c)
-    
-    def get_probability_of_exercise(self) -> float:
-        A = self.strike_price * np.exp(-self.r * self.t)
-        V = self.underlying_price
-        v = self.volatility
-        t = self.t
-        a = np.log(V / A)
         b = 0.5 * v**2 * t
         c = v * np.sqrt(t)
         d1 = (a + b) / c
-        d2 = d1 - v * np.sqrt(t)
+        return d1, d1 - v*np.sqrt(t)
+
+    def price(self) -> float:
+        """
+        Computes the price of this option.
+        """
+        A = self.strike_price * np.exp(-self.r * self.t)
+        V = self.underlying_price
+        d1, d2 = self._d_vals()
+        return V * N(d1) - A * N(d2)
+    
+    def delta(self) -> float:
+        """
+        Computes the delta of this option.
+        """
+        d1 = self._d_vals()[0]
+        return N(d1)
+    
+    def get_probability_of_exercise(self) -> float:
+        """
+        Computes the probability of exercising this option.
+        """
+        d2 = self._d_vals()[1]
         return N(d2)

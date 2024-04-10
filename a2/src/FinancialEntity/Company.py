@@ -64,19 +64,6 @@ class StockCompany(Company):
         self.equity = equity
         self.debt = debt 
 
-    def add_bonds(self, bonds: Bond|list[Bond]) -> None:
-        if isinstance(bonds, Bond):
-            self.bonds.append(bonds)
-        else:
-            self.bonds.extend(bonds)
-        self.bonds = sort_bond_list(self.bonds)
-
-    def make_option(self, period: int) -> Option:
-        """
-        Creates an option modelling this company's equity as a call option on its assets.
-        """
-        return Option(self.assets, self.debt, self.rates[period], period/365, self.stock.volatility)
-
     def print_stats(self) -> None:
         print(f"Company: {self.name}\n" + 
               f"Assets: {self.assets}\n" +
