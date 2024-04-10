@@ -4,13 +4,16 @@ import matplotlib.pyplot as plt
 import scipy.optimize
 from src.FinancialEntity.Company import Company, StockCompany
 from src.FinancialInstruments.Option import Option
+from src.FinancialInstruments.Bond import compute_spread
 
 
 class FinancialModel:
+    government: Company
     company: Company
 
-    def __init__(self, company: Company) -> None:
+    def __init__(self, government: Company, company: Company) -> None:
         self.company = company
+        self.government = government
 
     def get_default_probs(self, periods: np.array) -> np.array:
         raise NotImplementedError
@@ -30,78 +33,87 @@ class FinancialModel:
 
 class CreditMetricModel(FinancialModel):
     government: Company
+    spread: float | None
 
     def __init__(self, gov: Company, com: Company) -> None:
-        super().__init__(com)
-        self.government = gov
+        super().__init__(gov, com)
+        self.spread = self.get_spread()
 
     def print_stats(self) -> None:
         print(f"Government: {self.government.name}\n" + 
               f"Company: {self.company.name}\n" + 
               f"Recovery Rate: {self.company.get_recovery_rate()}\n" +
+              f"Spread: {round(self.spread/0.0001)}\n" +
               f"Annual Default Probability: {(1 - self.get_q())*100}%")
-    
-    def setup(self):
-        self.government.compute_rates()
-        self.company.compute_rates()
-
-    def gen_hazard_rates(self, periods: np.array) -> np.array:
-        h = np.zeros_like(periods, dtype=float)
-        for i in range(len(periods)):
-            h[i] = self.company.rates[periods[i]] - self.government.rates[periods[i]]
-        return h
-    
-    def get_default_probs(self, periods: np.array) -> np.array:
-        R = self.company.get_recovery_rate()
-        h = self.gen_hazard_rates(periods)
         
-        return 1 - (np.exp(-h) - R) / (1 - R)
+    def get_spread(self) -> float:
+        c_bond = self.company.bonds[0]
+        nearest_bond = None
+        for bond in self.government.bonds:
+            if nearest_bond is None:
+                nearest_bond = bond
+            if abs(bond.maturity_period - c_bond.maturity_period) < abs(nearest_bond.maturity_period - c_bond.maturity_period):
+                nearest_bond = bond
+        return compute_spread(nearest_bond, c_bond)
+        
+   
+    def set_spread(self, spread: float) -> None:
+        self.spread = spread
     
     def get_q(self):
-        h = self.gen_hazard_rates([365])[0]
+        h = self.spread
         R = self.company.get_recovery_rate()
         return (np.exp(-h) - R) / (1 - R)
     
     def get_annual_default_probs(self, num_years: int) -> list:
         q = self.get_q()
-        A = np.array([[q, 1-q],[0,1]])
+        M = np.array([[q, 1-q],[0,1]])
+        A = M
         default_probs = []
         for _ in range(num_years):
             default_probs.append(A[0,1])
-            A = A @ A
+            A = A @ M
         return default_probs
 
 
 
 def volatility_equation(vs: float, V: float, S: float, delta: float) -> float:
-    return vs * S * delta / V
+    return vs * S / delta / V
 
 
 class MertonModel(FinancialModel):
     option: Option
 
-    def __init__(self, company: StockCompany) -> None:
-        super().__init__(company)
+    def __init__(self, government: Company, company: StockCompany) -> None:
+        super().__init__(government, company)
 
     def print_stats(self) -> None:
+        assets, asset_volatility = self.find_asset_vals()
         print(f"Company: {self.company.name}\n" +
               f"Assets: {self.company.assets}\n" +
               f"Equity: {self.company.equity}\n" +
               f"Debt: {self.company.debt}\n" +
               f"Stock Volatility: {100*self.company.stock.volatility}\n" +
-              f"Asset Volatility: {100*self.find_asset_volatility("fixed")}")
+              f"Asset Volatility: {100*asset_volatility}\n" +
+              f"Derived Assets: {assets}")
 
     def setup(self, stock_price_file: str):
+        self.government.compute_rates()
+        self.find_asset_volatility("fixed")
         self.company.compute_rates()
         self.company.stock.compute_volatility(stock_price_file)
 
+    """
     def _fixed_point(self, equity_vol: float):
-        option = self.company.make_option(365)
+        option = Option(self.company.assets,
+                        self.company.debt,
+                        self.government.rates[365],
+                        1.0,
+                        np.inf)
         S = self.company.equity
         V = self.company.assets
         tol = 1e-9
         new_vol = equity_vol
-        option.volatility = np.inf
         i, max_iter = 0, 1000
         while abs(new_vol - option.volatility) > tol and i < max_iter:
             option.volatility = new_vol
@@ -119,13 +131,42 @@ class MertonModel(FinancialModel):
         else:
             raise ValueError
         return asset_volatility
-    
-    def get_default_probs(self, periods: list[int]) -> list[float]:
-        option = self.company.make_option(365)
-        asset_volatility = self.find_asset_volatility(method="fixed")
-        option.volatility = asset_volatility
+    """
+
+    def fixed_point_equations(self, variables, sigma_S):
+        V, sigma_V = variables
+        option = Option(underlying_price=V,
+                        strike_price=self.company.debt,
+                        r=self.government.rates[365],
+                        t=1.0,
+                        volatility=sigma_V)
+        E_calculated = option.price()
+        sigma_V_calculated = volatility_equation(sigma_S, V, self.company.equity, option.delta())
+        return [E_calculated - self.company.equity, sigma_V_calculated - sigma_V]
+
+    def find_asset_vals(self) -> list[float]:
+        initial_guesses = [self.company.assets, self.company.stock.volatility]
+        return scipy.optimize.fsolve(self.fixed_point_equations, initial_guesses, self.company.stock.volatility)
+
+    def get_default_probs(self, num_years: int) -> list[float]:
+        assets, asset_volatility = self.find_asset_vals()
+        option = Option(
+            assets,
+            self.company.debt,
+            0.0,
+            0.0,
+            asset_volatility
+        )
+        #asset_volatility = self.find_asset_volatility(method="fixed")
+        #option.volatility = asset_volatility
+        survival_probs = []
+        for y in range(1, num_years+1):
+            option.r = self.government.rates[y*365]
+            option.t = y
+            survival_probs.append(option.get_probability_of_exercise())
         default_probs = []
-        for period in periods:
-            option.t = period/365
-            default_probs.append(1. - option.get_probability_of_exercise())
+        prod = 1
+        for p in survival_probs:
+            prod *= p
+            default_probs.append(1. - prod)
         return default_probs

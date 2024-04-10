@@ -24,14 +24,17 @@ class DatedStock(Stock):
         if isinstance(price_data, str):
             price_data = consume_price_csv(price_data)
         df = price_data
-        df = df[df["Price Date"] <= pd.to_datetime(self.date)]
-        df["Interday Return"] = df["Price"].div(df["Price"].shift(1))
-        self.volatility = df["Interday Return"].std(ddof=0, skipna=True) * np.sqrt(252)
+        #df = df[df["Price Date"] <= pd.to_datetime(self.date)]
+        df["Interday Return"] = np.log(df["Price"] / df["Price"].shift(1))
+        self.volatility = df["Interday Return"].std(ddof=0) * np.sqrt(252)
 
 
 def consume_price_csv(filename: str) -> pd.DataFrame:
     df = pd.read_csv(filename)
-    df["Price Date"] = pd.to_datetime(df["Date"], format="%m/%d/%y")
+    try:
+        df["Price Date"] = pd.to_datetime(df["Date"], format="%m/%d/%y")
+    except ValueError:
+        df["Price Date"] = pd.to_datetime(df["Date"])
     df["Price"] = df["Close"]
     df = df[["Price Date", "Price"]]
     return df

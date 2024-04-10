@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from operator import attrgetter
+from src.BinarySortedDict.BinarySortedDict import BinarySortedDict
 
 ###########################
 ### Bond Data Structure ###
@@ -40,10 +41,63 @@ class DatedBond(Bond):
         self.price = price
         self.maturity_period = maturity_period
         self.coupon_periods = coupon_periods
+    
+    def __str__(self) -> str:
+        return f"{self.isin} | {self.coupon} | {self.maturity_period}"
 
-
+######################
+### Bond Functions ###
+######################
 def sort_bond_list(lst: list[DatedBond]) -> list[DatedBond]:
     return sorted(lst, key=attrgetter("date"))
+
+
+### YTM Computations
+def ytm(bond: DatedBond, ytm: float) -> float:
+    P = 0
+    for period in bond.coupon_periods:
+        t = period/365
+        P += bond.coupon_payment * np.exp(-ytm*t)
+    t = bond.maturity_period/365
+    return P + bond.notional * np.exp(-ytm*t) - bond.price
+
+
+def d_ytm(bond: Bond, ytm: float) -> float:
+    P = 0
+    for period in bond.coupon_periods:
+        t = period/365
+        P -= bond.coupon_payment * t * np.exp(-ytm*t)
+    t = bond.maturity_period/365
+    return P - bond.notional * t * np.exp(-ytm*t)
+
+
+def newton_raphson_ytm(bond: Bond) -> float:
+    old_ytm = np.inf
+    new_ytm = 0.03
+    TOL = 1e-6
+    num_iter = 1000
+    i = 0
+    while i < num_iter and np.abs(new_ytm - old_ytm) > TOL:
+        old_ytm = new_ytm
+        new_ytm = old_ytm - ytm(bond, old_ytm)/d_ytm(bond, old_ytm)
+        i += 1
+    if i == num_iter:
+        print("Max number of iterations reached.")
+    return new_ytm
+
+
+def compute_spread(gov: DatedBond, com: DatedBond) -> float:
+    """
+    Returns the spread between the government bond and the company bond.
+    Formula: spread = company YTM - gov YTM
+
+    === Prerequisites ===
+    - gov bond and company bond mature at a similar time period
+    """
+    gov_ytm = newton_raphson_ytm(gov)
+    com_ytm = newton_raphson_ytm(com)
+    return com_ytm - gov_ytm
+
 
 #############################
 ### Bond Data Consumption ###
@@ -75,7 +129,7 @@ def get_dated_bonds(df: pd.DataFrame) -> list[DatedBond]:
                                row["Dirty Price"],
                                row["Maturity Period"],
                                row["Coupon Periods"]))
-    return bonds
+    return sort_bond_list(bonds)
 
 
 def get_last_coupon_payment_date(row):

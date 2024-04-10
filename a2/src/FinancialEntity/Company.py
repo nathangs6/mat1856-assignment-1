@@ -12,6 +12,8 @@ class Company:
     bonds: list[DatedBond]
     rates: BinarySortedDict | None
     recovery_rate: float | None
+    spread: float | None
+
     def __init__(self, name: str, bonds: list[Bond]) -> None:
         self.name = name
         self.bonds = bonds
@@ -54,12 +56,12 @@ class StockCompany(Company):
     debt: float
     
     def __init__(self, name: str, bonds: list[Bond], stock: DatedStock,
-                 liability: float, debt: float) -> None:
+                 assets: float, equity: float, debt: float) -> None:
         self.name = name
         self.stock = stock
         self.bonds = bonds
-        self.equity = (stock.num_shares * stock.price) / 1e9
-        self.assets = self.equity + liability
+        self.assets = assets
+        self.equity = equity
         self.debt = debt 
 
     def add_bonds(self, bonds: Bond|list[Bond]) -> None:
