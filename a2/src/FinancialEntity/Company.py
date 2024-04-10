@@ -2,9 +2,6 @@ from src.FinancialInstruments.Bond import Bond, DatedBond, sort_bond_list
 from src.FinancialInstruments.Stock import DatedStock
 from src.BinarySortedDict.BinarySortedDict import BinarySortedDict
 from src.Bootstrapper.bootstrap import bootstrap
-from src.FinancialInstruments.Option import Option
-import numpy as np
-import scipy
 
 
 class Company:

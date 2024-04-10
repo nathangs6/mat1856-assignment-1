@@ -1,6 +1,5 @@
 import numpy as np
 import scipy
-import matplotlib.pyplot as plt
 import scipy.optimize
 from src.FinancialEntity.Company import Company, StockCompany
 from src.FinancialInstruments.Option import Option

@@ -1,4 +1,4 @@
-from src.FinancialModels.FinancialModel import MertonModel, CreditMetricModel
+from src.FinancialModels.FinancialModel import MertonModel
 from src.FinancialEntity.Company import Company, StockCompany
 from src.FinancialInstruments.Stock import DatedStock
 from src.BinarySortedDict.BinarySortedDict import BinarySortedDict

@@ -11,13 +11,16 @@ def construct_canada() -> Company:
     gov_bonds = get_dated_bonds(process_bond_data("data/gov_bond_info.csv",
                                                   "data/gov_bond_prices.csv"))
     canada = Company("Canada", gov_bonds)
+    canada.compute_rates()
     return canada
 
 
 def construct_brookfield() -> StockCompany:
+    num_shares = 287.053
+    stock_price = 30.34
     bonds = get_dated_bonds(process_bond_data("data/brookfield_bond_info.csv",
                                                      "data/brookfield_bond_prices.csv"))
-    stock = DatedStock(287.053, "04-10-2024", 30.34)
+    stock = DatedStock(num_shares, "04-10-2024", stock_price)
     stock.compute_volatility("data/bepun_stock_prices.csv")
     equity = stock.num_shares * stock.price
     debt = 25222
@@ -29,7 +32,6 @@ def merton_experiment(num_years: int, com_constructor: callable) -> list[float]:
     print("=== MERTON ===")
     ### SETUP
     canada = construct_canada()
-    canada.get_rates([365 * i for i in range(1, num_years+1)])
     company  = com_constructor()
 
     ### Merton Specific Results
