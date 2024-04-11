@@ -93,7 +93,7 @@ def volatility_equation(vs: float, V: float, S: float, delta: float) -> float:
     - delta = option delta
     v_v = v_S * S / delta / V
     """
-    return vs * S / delta / V
+    return vs * S * delta / V
 
 
 def cumulative_probability(X_probs: list[float]) -> list[float]:
@@ -140,7 +140,7 @@ class MertonModel(FinancialModel):
         V, sigma_V = variables
         option = Option(underlying_price=V,
                         strike_price=self.company.debt,
-                        r=self.government.rates[365*10],
+                        r=self.government.rates[365],
                         t=1.0,
                         volatility=sigma_V)
         S_calculated = option.price()
@@ -153,7 +153,7 @@ class MertonModel(FinancialModel):
         the fixed point equations.
         """
         initial_guesses = [self.company.assets, self.company.stock.volatility]
-        return scipy.optimize.fsolve(self.fixed_point_equations, initial_guesses, self.company.stock.volatility)
+        return scipy.optimize.fsolve(self.fixed_point_equations, initial_guesses, args=(self.company.stock.volatility))
 
     def get_default_probs(self, num_years: int) -> list[float]:
         """
