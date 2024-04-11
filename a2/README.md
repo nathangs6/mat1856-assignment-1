@@ -1,5 +1,5 @@
-# Assignment 2 - Probability of Default
-In this assignment, I found the probability that Brookfield Renewable Partners (BEP) will default in the future.
+# Assignment 2 - Credit Risk Analysis
+In this assignment, I found the probability that Brookfield Renewable Partners (BEP) will default in the future using real world data.
 
 ## Running the Code
 To run the code, please do the following:
@@ -13,11 +13,11 @@ To run the code, please do the following:
 For both methods, I need the rates for the Canadian government bonds. These are treated as the risk-free interest rates for both methods. This was implemented in assignment 1, and similar code is used here.
 
 ### CreditMetrics
-For CreditMetrics, the goal is to find a Markov transition matrix, $M$, containing probabilities of moving different credit ratings at each tmie step. The form of $M$ is special as the probability of staying in default once defaulted *must be* $1$. Once $M$ is found, you can find the probability of being in default at time $T$ by computing $M^T$. In this assignment, I used two Markov states, solvency and default, so that
+For CreditMetrics, the goal is to find a Markov transition matrix, $M$, containing probabilities of moving different credit ratings at each tmie step. The form of $M$ is special as the probability of staying in default once defaulted *must be* $1$. Once $M$ is found, you can find the probability of being in default at time $t$ by computing $M^t$. In this assignment, I used two Markov states, solvency and default, so that
 ```math
 M = \begin{pmatrix} q & 1 - q \\ 0 & 1 \end{pmatrix}
 ```
-where $q$ is the probability of staying solvent. Thus, the probability of being in default at time $T$ is $M^T_{0,1}$.
+where $q$ is the probability of staying solvent. Thus, the probability of being in default at time $T$ is $M^t_{0,1}$.
 
 So the goal is to find $q$. To do so, we select one of BEP's bonds and find it's YTM. Then, we compute the hazard rate, $h = YTM - r$ where $r$ is the risk-free interest rate. Finally, we can get $q$ via
 ```math
